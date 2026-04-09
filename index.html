@@ -3,16 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <title>フロア設定ツール</title>
-
 <style>
-#map { position:relative; width:1000px; }
+#map {
+  position: relative;
+  width: 1000px; /* フロア画像サイズに合わせる */
+}
 .point {
-  position:absolute;
-  border:2px solid red;
+  position: absolute;
+  border: 2px solid red;
+  background: rgba(255,0,0,0.5);
+  border-radius: 50%;
 }
 </style>
 </head>
-
 <body>
 
 <h2>① 小間をクリック → ②番号入力</h2>
@@ -26,10 +29,9 @@
 <pre id="output"></pre>
 
 <script>
-
 let positions = [];
 
-function addPoint(e){
+function addPoint(e) {
   const rect = e.target.getBoundingClientRect();
 
   const x = e.clientX - rect.left;
@@ -37,32 +39,31 @@ function addPoint(e){
 
   const booth = prompt("小間番号を入力");
 
-  if(!booth) return;
+  if (!booth) return;
 
-  positions.push({booth,x,y});
+  positions.push({booth, x, y});
 
+  const size = 10; // 赤点サイズ（小間中心表示用）
   const div = document.createElement("div");
   div.className = "point";
-  div.style.left = x+"px";
-  div.style.top = y+"px";
-  div.style.width = "80px";
-  div.style.height = "80px";
+  div.style.width = size + "px";
+  div.style.height = size + "px";
+  div.style.left = (x - size / 2) + "px";
+  div.style.top = (y - size / 2) + "px";
 
   document.getElementById("map").appendChild(div);
 }
 
-function exportData(){
+function exportData() {
   let text = "const positions = {\n";
 
-  positions.forEach(p=>{
-    text += `"${p.booth}": {x:${Math.round(p.x)}, y:${Math.round(p.y)}},\n`;
+  positions.forEach(p => {
+    text += `  "${p.booth}": {x:${Math.round(p.x)}, y:${Math.round(p.y)}},\n`;
   });
 
-  text += "}";
-
+  text += "};";
   document.getElementById("output").innerText = text;
 }
-
 </script>
 
 </body>
