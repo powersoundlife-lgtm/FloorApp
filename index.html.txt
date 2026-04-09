@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>展示会フロア管理</title>
+<style>
+body { font-family: Arial; }
+.booth {
+  position: absolute;
+  border: 1px solid #333;
+  background: rgba(0, 128, 255, 0.2);
+  cursor: pointer;
+}
+.label {
+  position: absolute;
+  font-size: 12px;
+  color: #000;
+  background: rgba(255,255,255,0.7);
+}
+#popup {
+  display:none;
+  position:fixed;
+  top:30%; left:40%;
+  background:#fff;
+  padding:20px;
+  border:1px solid #333;
+}
+</style>
+</head>
+<body>
+
+<h2>展示会フロア管理</h2>
+
+<div style="position:relative;">
+  <img src="floor.png" width="1000">
+
+  <!-- 主要小間（実用版） -->
+  <div class="booth" style="top:100px; left:100px; width:80px; height:80px;" onclick="openPopup('101')"></div>
+  <div id="label-101" class="label" style="top:100px; left:100px;"></div>
+
+  <div class="booth" style="top:100px; left:200px; width:80px; height:80px;" onclick="openPopup('102')"></div>
+  <div id="label-102" class="label" style="top:100px; left:200px;"></div>
+
+  <div class="booth" style="top:200px; left:100px; width:80px; height:80px;" onclick="openPopup('103')"></div>
+  <div id="label-103" class="label" style="top:200px; left:100px;"></div>
+</div>
+
+<div id="popup">
+  <h3 id="booth"></h3>
+  <p id="company"></p>
+  <input id="name" placeholder="営業担当名">
+  <button onclick="save()">保存</button>
+</div>
+
+<h3>一覧</h3>
+<table border="1" id="list">
+<tr><th>小間</th><th>出展社</th><th>担当</th></tr>
+</table>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbznk6KRovt5i4lv_gMLFabkjm3j1EJJyGmdGyUB4carhyvr4eSyz3UcxTbDnoxDB_ZpKw/exec";
+
+let current = "";
+let sheetData = [];
+
+async function loadData(){
+  const res = await fetch(API_URL);
+  const data = await res.json();
+  sheetData = data;
+  render();
+}
+
+function openPopup(booth){
+  current = booth;
+
+  let company = "";
+  let name = "";
+
+  for(let i=1;i<sheetData.length;i++){
+    if(sheetData[i][0] == booth){
+      company = sheetData[i][1];
+      name = sheetData[i][2] || "";
+      break;
+    }
+  }
+
+  document.getElementById('booth').innerText = '小間：' + booth;
+  document.getElementById('company').innerText = company;
+  document.getElementById('name').value = name;
+  document.getElementById('popup').style.display = 'block';
+}
+
+async function save(){
+  const name = document.getElementById('name').value;
+
+  await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({ booth: current, name: name })
+  });
+
+  document.getElementById('popup').style.display = 'none';
+  loadData();
+}
+
+function render(){
+  let html = '<tr><th>小間</th><th>出展社</th><th>担当</th></tr>';
+
+  for(let i=1;i<sheetData.length;i++){
+    let booth = sheetData[i][0];
+    let company = sheetData[i][1];
+    let name = sheetData[i][2] || "";
+
+    html += `<tr><td>${booth}</td><td>${company}</td><td>${name}</td></tr>`;
+
+    let label = document.getElementById('label-' + booth);
+    if(label) label.innerText = name;
+  }
+
+  document.getElementById('list').innerHTML = html;
+}
+
+loadData();
+</script>
+
+</body>
+</html>
