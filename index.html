@@ -132,7 +132,7 @@ function updateColor(){
 // データ読み込み
 async function loadData(){
   try{
-    const res = await fetch(https://script.google.com/macros/s/AKfycbyrUA3v7p969kyCq0n4mBNfNvzBTGwovEiSoWJqsScZHgShb6uqkxE6JR7xk0RLDdFxeg/exec);
+    const res = await fetch(SHEET_URL);
     const arr = await res.json();
     arr.forEach(r=>{ dataList[r.booth] = r.name; });
     updateList();
