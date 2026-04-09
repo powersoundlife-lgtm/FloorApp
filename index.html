@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>展示会管理 完全版</title>
-
 <style>
 body { font-family: Arial; }
 
@@ -31,14 +30,17 @@ body { font-family: Arial; }
   border:none;
   cursor:pointer;
   transform:translate(-50%, -50%);
+  transition: background 0.2s;
+}
+
+.booth-filled {
+  background: rgba(255,0,0,0.5);
 }
 </style>
 </head>
-
 <body>
 
 <h2>展示会フロア</h2>
-
 <div id="map">
   <img src="floor.png" width="1000">
 </div>
@@ -46,7 +48,7 @@ body { font-family: Arial; }
 <div id="popup">
   <h3 id="booth"></h3>
   <p id="company"></p>
-  <input id="name">
+  <input id="name" placeholder="担当者名">
   <button onclick="save()">保存</button>
 </div>
 
@@ -58,8 +60,8 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzEz4uObLgiDAX88LEhAjsg
 
 let current = "";
 let sheetData = [];
+let boothElements = {}; // 小間ごとの div を保持
 
-// 全小間座標
 const positions = {
   "722": {x:285, y:184}, "721": {x:285, y:210}, "720": {x:286, y:233},
   "719": {x:288, y:257}, "718": {x:287, y:279}, "717": {x:285, y:301},
@@ -93,7 +95,7 @@ const positions = {
   "402": {x:499, y:212}, "302": {x:535, y:383}
 };
 
-// 透明クリック範囲生成
+// 透明クリック範囲 + DOM保持
 const map = document.getElementById("map");
 for (const booth in positions) {
   const pos = positions[booth];
@@ -103,20 +105,22 @@ for (const booth in positions) {
   div.style.top = pos.y + "px";
   div.onclick = () => openPopup(booth);
   map.appendChild(div);
+  boothElements[booth] = div;
 }
 
-// データ読み込み
+// データ取得
 async function loadData(){
   try {
     const res = await fetch(API_URL);
     sheetData = await res.json();
+    updateBoothColors();
     renderList();
   } catch(err) {
-    alert("一覧取得に失敗しました");
     console.error(err);
   }
 }
 
+// POPUP表示
 function openPopup(booth){
   current = booth;
   let company = "";
@@ -137,31 +141,32 @@ function openPopup(booth){
   document.getElementById("popup").style.display="block";
 }
 
-// 保存処理（POPUP閉じる＋一覧更新）
+// 保存処理
 async function save(){
   const name = document.getElementById("name").value;
 
   try {
     await fetch(API_URL, {
       method:"POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({booth: current, name: name})
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({booth:current, name})
     });
 
-    await loadData(); // 一覧更新
     document.getElementById("popup").style.display="none"; // POPUP閉じる
-
+    await loadData(); // 一覧・色更新
   } catch(err) {
     alert("保存に失敗しました");
     console.error(err);
   }
 }
 
+// 一覧描画
 function renderList(){
   let html = "<tr><th>小間</th><th>出展社</th><th>担当</th></tr>";
   for(let i=1;i<sheetData.length;i++){
+    const booth = sheetData[i][0];
     html += `<tr>
-      <td>${sheetData[i][0]}</td>
+      <td>${booth}</td>
       <td>${sheetData[i][1]}</td>
       <td>${sheetData[i][2]||""}</td>
     </tr>`;
@@ -169,8 +174,20 @@ function renderList(){
   document.getElementById("list").innerHTML = html;
 }
 
+// 小間の色付け更新
+function updateBoothColors(){
+  for(const booth in boothElements){
+    const div = boothElements[booth];
+    const data = sheetData.find(r => r[0] == booth);
+    if(data && data[2]) { // 担当が登録されていれば色付け
+      div.classList.add("booth-filled");
+    } else {
+      div.classList.remove("booth-filled");
+    }
+  }
+}
+
 loadData();
 </script>
-
 </body>
 </html>
