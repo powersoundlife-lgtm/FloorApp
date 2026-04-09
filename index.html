@@ -2,66 +2,52 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>展示会管理 完全版</title>
+<title>展示会管理（ブラウザ完結版）</title>
 <style>
 body { font-family: Arial; }
-
+#map { position: relative; width: 1000px; }
+.point {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(0,0,0,0.0); /* 初期は透明 */
+}
 #popup {
   display:none;
-  position:fixed;
+  position: fixed;
   top:30%;
   left:40%;
   background:#fff;
   padding:20px;
   border:2px solid #333;
-  z-index: 1000;
 }
-
-#map {
-  position:relative;
-  width:1000px;
-}
-
-.booth-point {
-  position:absolute;
-  width:10px;
-  height:10px;
-  background:transparent;
-  border:none;
-  cursor:pointer;
-  transform:translate(-50%, -50%);
-  transition: background 0.2s;
-}
-
-.booth-filled {
-  background: rgba(255,0,0,0.5);
-}
+table { border-collapse: collapse; margin-top: 20px; }
+th, td { border: 1px solid #333; padding: 5px 10px; text-align: center; }
 </style>
 </head>
 <body>
 
 <h2>展示会フロア</h2>
+
 <div id="map">
   <img src="floor.png" width="1000">
 </div>
 
 <div id="popup">
   <h3 id="booth"></h3>
-  <p id="company"></p>
   <input id="name" placeholder="担当者名">
   <button onclick="save()">保存</button>
 </div>
 
-<h3>一覧</h3>
-<table border="1" id="list"></table>
+<h3>担当一覧</h3>
+<table id="list">
+  <tr><th>小間</th><th>担当</th></tr>
+</table>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzEz4uObLgiDAX88LEhAjsgula85rkTo6gWAsLlff4QZtdrlffmC2zf8Mv26u7XmfXk/exec";
-
-let current = "";
-let sheetData = [];
-let boothElements = {}; // 小間ごとの div を保持
-
+// 全小間座標（先ほどのデータ）
 const positions = {
   "722": {x:285, y:184}, "721": {x:285, y:210}, "720": {x:286, y:233},
   "719": {x:288, y:257}, "718": {x:287, y:279}, "717": {x:285, y:301},
@@ -95,99 +81,62 @@ const positions = {
   "402": {x:499, y:212}, "302": {x:535, y:383}
 };
 
-// 透明クリック範囲 + DOM保持
+let sheetData = {};
 const map = document.getElementById("map");
-for (const booth in positions) {
+const popup = document.getElementById("popup");
+const boothInput = document.getElementById("name");
+let currentBooth = "";
+
+// 初期ポイント作成
+for(const booth in positions){
   const pos = positions[booth];
   const div = document.createElement("div");
-  div.className = "booth-point";
-  div.style.left = pos.x + "px";
-  div.style.top = pos.y + "px";
-  div.onclick = () => openPopup(booth);
+  div.className = "point";
+  div.style.left = (pos.x - 5) + "px";
+  div.style.top = (pos.y - 5) + "px";
+  div.dataset.booth = booth;
+  div.addEventListener("click", e => openPopup(e.target.dataset.booth));
   map.appendChild(div);
-  boothElements[booth] = div;
 }
 
-// データ取得
-async function loadData(){
-  try {
-    const res = await fetch(API_URL);
-    sheetData = await res.json();
-    updateBoothColors();
-    renderList();
-  } catch(err) {
-    console.error(err);
-  }
-}
-
-// POPUP表示
 function openPopup(booth){
-  current = booth;
-  let company = "";
-  let name = "";
-
-  for(let i=1;i<sheetData.length;i++){
-    if(sheetData[i][0]==booth){
-      company = sheetData[i][1];
-      name = sheetData[i][2]||"";
-      break;
-    }
-  }
-
-  document.getElementById("booth").innerText = "小間："+booth;
-  document.getElementById("company").innerText = company;
-  document.getElementById("name").value = name;
-
-  document.getElementById("popup").style.display="block";
+  currentBooth = booth;
+  boothInput.value = sheetData[booth] || "";
+  document.getElementById("booth").innerText = "小間: " + booth;
+  popup.style.display = "block";
 }
 
-// 保存処理
-async function save(){
-  const name = document.getElementById("name").value;
-
-  try {
-    await fetch(API_URL, {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({booth:current, name})
-    });
-
-    document.getElementById("popup").style.display="none"; // POPUP閉じる
-    await loadData(); // 一覧・色更新
-  } catch(err) {
-    alert("保存に失敗しました");
-    console.error(err);
-  }
+function save(){
+  const name = boothInput.value.trim();
+  if(!name) return alert("担当を入力してください");
+  
+  sheetData[currentBooth] = name;
+  popup.style.display = "none";
+  updateList();
+  updatePoints();
 }
 
-// 一覧描画
-function renderList(){
-  let html = "<tr><th>小間</th><th>出展社</th><th>担当</th></tr>";
-  for(let i=1;i<sheetData.length;i++){
-    const booth = sheetData[i][0];
-    html += `<tr>
-      <td>${booth}</td>
-      <td>${sheetData[i][1]}</td>
-      <td>${sheetData[i][2]||""}</td>
-    </tr>`;
+function updateList(){
+  const table = document.getElementById("list");
+  let html = "<tr><th>小間</th><th>担当</th></tr>";
+  for(const booth in positions){
+    html += `<tr><td>${booth}</td><td>${sheetData[booth] || ""}</td></tr>`;
   }
-  document.getElementById("list").innerHTML = html;
+  table.innerHTML = html;
 }
 
-// 小間の色付け更新
-function updateBoothColors(){
-  for(const booth in boothElements){
-    const div = boothElements[booth];
-    const data = sheetData.find(r => r[0] == booth);
-    if(data && data[2]) { // 担当が登録されていれば色付け
-      div.classList.add("booth-filled");
+function updatePoints(){
+  const points = document.querySelectorAll(".point");
+  points.forEach(p => {
+    const booth = p.dataset.booth;
+    if(sheetData[booth]){
+      p.style.background = "rgba(0,0,255,0.3)";
     } else {
-      div.classList.remove("booth-filled");
+      p.style.background = "rgba(0,0,0,0.0)";
     }
-  }
+  });
 }
 
-loadData();
 </script>
 </body>
 </html>
