@@ -2,140 +2,190 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>展示会管理（ブラウザ完結版）</title>
+<title>展示会フロア管理（共同編集版）</title>
 <style>
-body { font-family: Arial; }
-#map { position: relative; width: 1000px; }
+body { font-family: Arial, sans-serif; }
+#floor { position:relative; width:1000px; margin-bottom:20px; }
 .point {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  cursor: pointer;
-  background: rgba(0,0,0,0.0); /* 初期は透明 */
+  position:absolute;
+  cursor:pointer;
+  background:transparent;
+  border-radius:50%;
+  transition: background 0.3s;
 }
+.point.filled { background:rgba(0,128,255,0.5); }
 #popup {
   display:none;
-  position: fixed;
+  position:fixed;
   top:30%;
   left:40%;
   background:#fff;
   padding:20px;
   border:2px solid #333;
 }
-table { border-collapse: collapse; margin-top: 20px; }
-th, td { border: 1px solid #333; padding: 5px 10px; text-align: center; }
+table { border-collapse: collapse; width: 50%; margin-top: 20px; }
+table, th, td { border: 1px solid #333; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
 
-<h2>展示会フロア</h2>
+<h2>展示会フロア管理（共同編集版）</h2>
 
-<div id="map">
-  <img src="floor.png" width="1000">
+<div id="floor">
+  <img src="floor.png" width="1000" id="floor-img">
 </div>
 
 <div id="popup">
   <h3 id="booth"></h3>
+  <p id="company"></p>
   <input id="name" placeholder="担当者名">
   <button onclick="save()">保存</button>
 </div>
 
-<h3>担当一覧</h3>
+<h3>登録済み一覧</h3>
 <table id="list">
-  <tr><th>小間</th><th>担当</th></tr>
+  <tr><th>小間番号</th><th>担当者</th></tr>
 </table>
 
 <script>
-// 全小間座標（先ほどのデータ）
+// ===== 設定 =====
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzEz4uObLgiDAX88LEhAjsgula85rkTo6gWAsLlff4QZtdrlffmC2zf8Mv26u7XmfXk/exec"; // ここにスクリプトURL
 const positions = {
-  "722": {x:285, y:184}, "721": {x:285, y:210}, "720": {x:286, y:233},
-  "719": {x:288, y:257}, "718": {x:287, y:279}, "717": {x:285, y:301},
-  "716": {x:292, y:360}, "715": {x:283, y:382}, "714": {x:290, y:407},
-  "713": {x:290, y:428}, "172": {x:290, y:450}, "711": {x:289, y:473},
-  "710": {x:291, y:487}, "709": {x:288, y:532}, "708": {x:328, y:556},
-  "707": {x:350, y:557}, "706": {x:372, y:554}, "705": {x:389, y:552},
-  "704": {x:413, y:553}, "703": {x:434, y:555}, "702": {x:454, y:555},
-  "701": {x:474, y:552}, "101": {x:580, y:556}, "102": {x:599, y:551},
-  "103": {x:620, y:554}, "104": {x:645, y:555}, "105": {x:668, y:555},
-  "106": {x:689, y:554}, "107": {x:707, y:496}, "108": {x:711, y:470},
-  "109": {x:707, y:451}, "110": {x:707, y:431}, "111": {x:707, y:410},
-  "112": {x:709, y:391}, "113": {x:707, y:365}, "114": {x:707, y:319},
-  "115": {x:703, y:296}, "116": {x:704, y:280}, "117": {x:709, y:252},
-  "118": {x:707, y:234}, "119": {x:705, y:212}, "120": {x:704, y:192},
-  "201": {x:632, y:475}, "202": {x:660, y:474}, "301": {x:567, y:478},
-  "401": {x:494, y:482}, "205": {x:648, y:372}, "206": {x:650, y:303},
-  "204": {x:607, y:309}, "203": {x:605, y:374}, "207": {x:643, y:237},
-  "208": {x:634, y:216}, "209": {x:646, y:195}, "210": {x:656, y:211},
-  "305": {x:569, y:205}, "304": {x:572, y:235}, "303": {x:537, y:319},
-  "501": {x:410, y:500}, "502": {x:411, y:478}, "503": {x:413, y:457},
-  "504": {x:435, y:499}, "505": {x:434, y:477}, "506": {x:436, y:455},
-  "601": {x:340, y:490}, "602": {x:342, y:470}, "603": {x:369, y:489},
-  "604": {x:363, y:469}, "605": {x:342, y:418}, "606": {x:341, y:398},
-  "607": {x:357, y:377}, "608": {x:364, y:422}, "609": {x:364, y:397},
-  "610": {x:340, y:328}, "611": {x:340, y:308}, "612": {x:354, y:288},
-  "613": {x:363, y:330}, "614": {x:363, y:309}, "615": {x:340, y:213},
-  "616": {x:363, y:233}, "617": {x:362, y:210}, "618": {x:366, y:190},
-  "507": {x:423, y:382}, "508": {x:426, y:319}, "509": {x:469, y:379},
-  "510": {x:465, y:314}, "511": {x:425, y:225}, "512": {x:425, y:192},
-  "402": {x:499, y:212}, "302": {x:535, y:383}
+  "722": {x:285, y:184},
+  "721": {x:285, y:210},
+  "720": {x:286, y:233},
+  "719": {x:288, y:257},
+  "718": {x:287, y:279},
+  "717": {x:285, y:301},
+  "716": {x:292, y:360},
+  "715": {x:283, y:382},
+  "714": {x:290, y:407},
+  "713": {x:290, y:428},
+  "172": {x:290, y:450},
+  "711": {x:289, y:473},
+  "710": {x:291, y:487},
+  "709": {x:288, y:532},
+  "708": {x:328, y:556},
+  "707": {x:350, y:557},
+  "706": {x:372, y:554},
+  "705": {x:389, y:552},
+  "704": {x:413, y:553},
+  "703": {x:434, y:555},
+  "702": {x:454, y:555},
+  "701": {x:474, y:552},
+  "101": {x:580, y:556},
+  "102": {x:599, y:551},
+  "103": {x:620, y:554},
+  "104": {x:645, y:555},
+  "105": {x:668, y:555},
+  "106": {x:689, y:554},
+  "107": {x:707, y:496},
+  "108": {x:711, y:470},
+  "109": {x:707, y:451},
+  "110": {x:707, y:431},
+  "111": {x:707, y:410},
+  "112": {x:709, y:391},
+  "113": {x:707, y:365},
+  "114": {x:707, y:319},
+  "115": {x:703, y:296},
+  "116": {x:704, y:280},
+  "117": {x:709, y:252},
+  "118": {x:707, y:234},
+  "119": {x:705, y:212},
+  "120": {x:704, y:192}
 };
 
-let sheetData = {};
-const map = document.getElementById("map");
-const popup = document.getElementById("popup");
-const boothInput = document.getElementById("name");
+// ===== 初期化 =====
+const floorDiv = document.getElementById("floor");
 let currentBooth = "";
+let dataList = {};
 
-// 初期ポイント作成
-for(const booth in positions){
-  const pos = positions[booth];
+// クリック範囲生成
+const size = 10;
+for(const b in positions){
+  const p = positions[b];
   const div = document.createElement("div");
   div.className = "point";
-  div.style.left = (pos.x - 5) + "px";
-  div.style.top = (pos.y - 5) + "px";
-  div.dataset.booth = booth;
-  div.addEventListener("click", e => openPopup(e.target.dataset.booth));
-  map.appendChild(div);
+  div.style.width = size+"px";
+  div.style.height = size+"px";
+  div.style.left = (p.x - size/2) + "px";
+  div.style.top = (p.y - size/2) + "px";
+  div.dataset.booth = b;
+  div.onclick = () => openPopup(b);
+  floorDiv.appendChild(div);
 }
 
+// ===== ポップアップ =====
 function openPopup(booth){
   currentBooth = booth;
-  boothInput.value = sheetData[booth] || "";
-  document.getElementById("booth").innerText = "小間: " + booth;
-  popup.style.display = "block";
+  document.getElementById("booth").innerText = "小間：" + booth;
+  document.getElementById("name").value = dataList[booth] || "";
+  document.getElementById("popup").style.display = "block";
 }
 
-function save(){
-  const name = boothInput.value.trim();
-  if(!name) return alert("担当を入力してください");
-  
-  sheetData[currentBooth] = name;
-  popup.style.display = "none";
-  updateList();
-  updatePoints();
+// ===== 保存 =====
+async function save(){
+  const name = document.getElementById("name").value.trim();
+  if(!currentBooth || !name) return alert("担当者名を入力してください");
+
+  try{
+    const res = await fetch(SHEET_URL, {
+      method:"POST",
+      body: JSON.stringify({booth:currentBooth, name})
+    });
+    const result = await res.json();
+    if(result.status==="success"){
+      dataList[currentBooth] = name;
+      updateList();
+      updateColor();
+      document.getElementById("popup").style.display = "none";
+    } else {
+      alert("保存失敗："+result.message);
+    }
+  }catch(e){
+    alert("保存エラー："+e);
+  }
 }
 
+// ===== 一覧表示更新 =====
 function updateList(){
   const table = document.getElementById("list");
-  let html = "<tr><th>小間</th><th>担当</th></tr>";
-  for(const booth in positions){
-    html += `<tr><td>${booth}</td><td>${sheetData[booth] || ""}</td></tr>`;
+  let html = "<tr><th>小間番号</th><th>担当者</th></tr>";
+  for(const b in dataList){
+    html += `<tr><td>${b}</td><td>${dataList[b]}</td></tr>`;
   }
   table.innerHTML = html;
 }
 
-function updatePoints(){
+// ===== 色付け更新 =====
+function updateColor(){
   const points = document.querySelectorAll(".point");
-  points.forEach(p => {
-    const booth = p.dataset.booth;
-    if(sheetData[booth]){
-      p.style.background = "rgba(0,0,255,0.3)";
+  points.forEach(p=>{
+    if(dataList[p.dataset.booth]){
+      p.classList.add("filled");
     } else {
-      p.style.background = "rgba(0,0,0,0.0)";
+      p.classList.remove("filled");
     }
   });
 }
+
+// ===== データ読み込み =====
+async function loadData(){
+  try{
+    const res = await fetch(SHEET_URL);
+    const arr = await res.json();
+    arr.forEach(r=>{
+      dataList[r.booth] = r.name;
+    });
+    updateList();
+    updateColor();
+  }catch(e){
+    console.log("読み込み失敗", e);
+  }
+}
+
+// 初期ロード
+loadData();
 
 </script>
 </body>
