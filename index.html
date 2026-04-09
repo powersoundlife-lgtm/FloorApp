@@ -2,68 +2,217 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>フロア設定ツール</title>
+<title>展示会管理 完全版（透明クリック）</title>
+
 <style>
-#map {
-  position: relative;
-  width: 1000px; /* フロア画像サイズに合わせる */
+body { font-family: Arial; }
+
+#popup {
+  display:none;
+  position:fixed;
+  top:30%;
+  left:40%;
+  background:#fff;
+  padding:20px;
+  border:2px solid #333;
 }
-.point {
-  position: absolute;
-  border: 2px solid red;
-  background: rgba(255,0,0,0.5);
-  border-radius: 50%;
+
+#map {
+  position:relative;
+  width:1000px;
+}
+
+.booth-point {
+  position:absolute;
+  width:20px;       /* クリック範囲サイズ */
+  height:20px;
+  background:transparent;  /* 完全透明 */
+  border:none;             /* 枠線なし */
+  cursor:pointer;
+  transform:translate(-50%, -50%);
 }
 </style>
 </head>
+
 <body>
 
-<h2>① 小間をクリック → ②番号入力</h2>
+<h2>展示会フロア</h2>
 
 <div id="map">
-  <img src="floor.png" width="1000" onclick="addPoint(event)">
+  <img src="floor.png" width="1000">
 </div>
 
-<button onclick="exportData()">座標を出力</button>
+<div id="popup">
+  <h3 id="booth"></h3>
+  <p id="company"></p>
+  <input id="name">
+  <button onclick="save()">保存</button>
+</div>
 
-<pre id="output"></pre>
+<h3>一覧</h3>
+<table border="1" id="list"></table>
 
 <script>
-let positions = [];
+const API_URL = "https://script.google.com/macros/s/AKfycbznk6KRovt5i4lv_gMLFabkjm3j1EJJyGmdGyUB4carhyvr4eSyz3UcxTbDnoxDB_ZpKw/exec";
+let current = "";
+let sheetData = [];
 
-function addPoint(e) {
-  const rect = e.target.getBoundingClientRect();
+const positions = {
+  "722": {x:285, y:184},
+  "721": {x:285, y:210},
+  "720": {x:286, y:233},
+  "719": {x:288, y:257},
+  "718": {x:287, y:279},
+  "717": {x:285, y:301},
+  "716": {x:292, y:360},
+  "715": {x:283, y:382},
+  "714": {x:290, y:407},
+  "713": {x:290, y:428},
+  "172": {x:290, y:450},
+  "711": {x:289, y:473},
+  "710": {x:291, y:487},
+  "709": {x:288, y:532},
+  "708": {x:328, y:556},
+  "707": {x:350, y:557},
+  "706": {x:372, y:554},
+  "705": {x:389, y:552},
+  "704": {x:413, y:553},
+  "703": {x:434, y:555},
+  "702": {x:454, y:555},
+  "701": {x:474, y:552},
+  "101": {x:580, y:556},
+  "102": {x:599, y:551},
+  "103": {x:620, y:554},
+  "104": {x:645, y:555},
+  "105": {x:668, y:555},
+  "106": {x:689, y:554},
+  "107": {x:707, y:496},
+  "108": {x:711, y:470},
+  "109": {x:707, y:451},
+  "110": {x:707, y:431},
+  "111": {x:707, y:410},
+  "112": {x:709, y:391},
+  "113": {x:707, y:365},
+  "114": {x:707, y:319},
+  "115": {x:703, y:296},
+  "116": {x:704, y:280},
+  "117": {x:709, y:252},
+  "118": {x:707, y:234},
+  "119": {x:705, y:212},
+  "120": {x:704, y:192},
+  "201": {x:632, y:475},
+  "202": {x:660, y:474},
+  "301": {x:567, y:478},
+  "401": {x:494, y:482},
+  "205": {x:648, y:372},
+  "206": {x:650, y:303},
+  "204": {x:607, y:309},
+  "203": {x:605, y:374},
+  "207": {x:643, y:237},
+  "208": {x:634, y:216},
+  "209": {x:646, y:195},
+  "210": {x:656, y:211},
+  "305": {x:569, y:205},
+  "304": {x:572, y:235},
+  "303": {x:537, y:319},
+  "501": {x:410, y:500},
+  "502": {x:411, y:478},
+  "503": {x:413, y:457},
+  "504": {x:435, y:499},
+  "505": {x:434, y:477},
+  "506": {x:436, y:455},
+  "601": {x:340, y:490},
+  "602": {x:342, y:470},
+  "603": {x:369, y:489},
+  "604": {x:363, y:469},
+  "605": {x:342, y:418},
+  "606": {x:341, y:398},
+  "607": {x:357, y:377},
+  "608": {x:364, y:422},
+  "609": {x:364, y:397},
+  "610": {x:340, y:328},
+  "611": {x:340, y:308},
+  "612": {x:354, y:288},
+  "613": {x:363, y:330},
+  "614": {x:363, y:309},
+  "615": {x:340, y:213},
+  "616": {x:363, y:233},
+  "617": {x:362, y:210},
+  "618": {x:366, y:190},
+  "507": {x:423, y:382},
+  "508": {x:426, y:319},
+  "509": {x:469, y:379},
+  "510": {x:465, y:314},
+  "511": {x:425, y:225},
+  "512": {x:425, y:192},
+  "402": {x:499, y:212},
+  "302": {x:535, y:383},
+};
 
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  const booth = prompt("小間番号を入力");
-
-  if (!booth) return;
-
-  positions.push({booth, x, y});
-
-  const size = 10; // 赤点サイズ（小間中心表示用）
+// 小間ポイント生成（透明クリック）
+const map = document.getElementById("map");
+for (const booth in positions) {
+  const pos = positions[booth];
   const div = document.createElement("div");
-  div.className = "point";
-  div.style.width = size + "px";
-  div.style.height = size + "px";
-  div.style.left = (x - size / 2) + "px";
-  div.style.top = (y - size / 2) + "px";
-
-  document.getElementById("map").appendChild(div);
+  div.className = "booth-point";
+  div.style.left = pos.x + "px";
+  div.style.top = pos.y + "px";
+  div.onclick = () => openPopup(booth);
+  map.appendChild(div);
 }
 
-function exportData() {
-  let text = "const positions = {\n";
+// データ読み込み
+async function loadData(){
+  const res = await fetch(API_URL);
+  sheetData = await res.json();
+  renderList();
+}
 
-  positions.forEach(p => {
-    text += `  "${p.booth}": {x:${Math.round(p.x)}, y:${Math.round(p.y)}},\n`;
+function openPopup(booth){
+  current = booth;
+  let company = "";
+  let name = "";
+
+  for(let i=1;i<sheetData.length;i++){
+    if(sheetData[i][0]==booth){
+      company = sheetData[i][1];
+      name = sheetData[i][2]||"";
+      break;
+    }
+  }
+
+  document.getElementById("booth").innerText = "小間："+booth;
+  document.getElementById("company").innerText = company;
+  document.getElementById("name").value = name;
+
+  document.getElementById("popup").style.display="block";
+}
+
+async function save(){
+  const name = document.getElementById("name").value;
+
+  await fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({booth:current,name:name})
   });
 
-  text += "};";
-  document.getElementById("output").innerText = text;
+  document.getElementById("popup").style.display="none";
+  loadData();
 }
+
+function renderList(){
+  let html = "<tr><th>小間</th><th>出展社</th><th>担当</th></tr>";
+  for(let i=1;i<sheetData.length;i++){
+    html += `<tr>
+      <td>${sheetData[i][0]}</td>
+      <td>${sheetData[i][1]}</td>
+      <td>${sheetData[i][2]||""}</td>
+    </tr>`;
+  }
+  document.getElementById("list").innerHTML = html;
+}
+
+loadData();
 </script>
 
 </body>
