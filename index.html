@@ -12,6 +12,7 @@ body { font-family: Arial, sans-serif; }
   background:transparent;
   border-radius:50%;
   transition: background 0.3s;
+  pointer-events: auto; /* クリック可能に */
 }
 .point.filled { background:rgba(0,128,255,0.5); }
 #popup {
@@ -48,8 +49,7 @@ table, th, td { border: 1px solid #333; padding: 5px; text-align: center; }
 </table>
 
 <script>
-// ===== 設定 =====
-const SHEET_URL = "https://script.google.com/macros/s/AKfycbzEz4uObLgiDAX88LEhAjsgula85rkTo6gWAsLlff4QZtdrlffmC2zf8Mv26u7XmfXk/exec"; // ここにスクリプトURL
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzEz4uObLgiDAX88LEhAjsgula85rkTo6gWAsLlff4QZtdrlffmC2zf8Mv26u7XmfXk/exec"; 
 const positions = {
   "722": {x:285, y:184},
   "721": {x:285, y:210},
@@ -95,7 +95,6 @@ const positions = {
   "120": {x:704, y:192}
 };
 
-// ===== 初期化 =====
 const floorDiv = document.getElementById("floor");
 let currentBooth = "";
 let dataList = {};
@@ -111,11 +110,11 @@ for(const b in positions){
   div.style.left = (p.x - size/2) + "px";
   div.style.top = (p.y - size/2) + "px";
   div.dataset.booth = b;
-  div.onclick = () => openPopup(b);
+  div.addEventListener("click",()=>openPopup(b)); // onclick→addEventListener
   floorDiv.appendChild(div);
 }
 
-// ===== ポップアップ =====
+// ポップアップ
 function openPopup(booth){
   currentBooth = booth;
   document.getElementById("booth").innerText = "小間：" + booth;
@@ -123,7 +122,7 @@ function openPopup(booth){
   document.getElementById("popup").style.display = "block";
 }
 
-// ===== 保存 =====
+// 保存
 async function save(){
   const name = document.getElementById("name").value.trim();
   if(!currentBooth || !name) return alert("担当者名を入力してください");
@@ -131,6 +130,7 @@ async function save(){
   try{
     const res = await fetch(SHEET_URL, {
       method:"POST",
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({booth:currentBooth, name})
     });
     const result = await res.json();
@@ -138,7 +138,7 @@ async function save(){
       dataList[currentBooth] = name;
       updateList();
       updateColor();
-      document.getElementById("popup").style.display = "none";
+      document.getElementById("popup").style.display = "none"; // ポップアップ閉じる
     } else {
       alert("保存失敗："+result.message);
     }
@@ -147,7 +147,7 @@ async function save(){
   }
 }
 
-// ===== 一覧表示更新 =====
+// 一覧表示更新
 function updateList(){
   const table = document.getElementById("list");
   let html = "<tr><th>小間番号</th><th>担当者</th></tr>";
@@ -157,7 +157,7 @@ function updateList(){
   table.innerHTML = html;
 }
 
-// ===== 色付け更新 =====
+// 色付け更新
 function updateColor(){
   const points = document.querySelectorAll(".point");
   points.forEach(p=>{
@@ -169,7 +169,7 @@ function updateColor(){
   });
 }
 
-// ===== データ読み込み =====
+// データ読み込み
 async function loadData(){
   try{
     const res = await fetch(https://script.google.com/macros/s/AKfycbyrUA3v7p969kyCq0n4mBNfNvzBTGwovEiSoWJqsScZHgShb6uqkxE6JR7xk0RLDdFxeg/exec);
